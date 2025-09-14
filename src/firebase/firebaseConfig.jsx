@@ -4,12 +4,12 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAXnehAV_mINxxVOa3RwoIH_LQs_oOYeyo",
-  authDomain: "agricare-a4864.firebaseapp.com",
-  projectId: "agricare-a4864",
-  storageBucket: "agricare-a4864.firebasestorage.app",
-  messagingSenderId: "776203751402",
-  appId: "1:776203751402:web:983f44178a129be4486c93"
+  apiKey: "AIzaSyCYXXAXBPgBG-2ULXPopYsN6vj6MAj4HWM",
+  authDomain: "agricare-870c3.firebaseapp.com",
+  projectId: "agricare-870c3",
+  storageBucket: "agricare-870c3.firebasestorage.app",
+  messagingSenderId: "46644581886",
+  appId: "1:46644581886:web:2056a6d00d93e685d39caf"
 };
 
 // Initialize Firebase

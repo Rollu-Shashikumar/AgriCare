@@ -12,11 +12,12 @@ function Navbar() {
   const [language, setLanguage] = useState(i18n.language || 'en');
   const [user, setUser] = useState(null);
   const [userName, setUserName] = useState('User');
+  const [userRole, setUserRole] = useState(null); // New: Track user role
   const [isLoading, setIsLoading] = useState(true);
   const profileRef = useRef(null);
   const navigate = useNavigate();
 
-  // Monitor authentication state and fetch user name
+  // Monitor authentication state and fetch user name/role
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       console.log('Auth state changed:', currentUser ? currentUser.uid : 'No user');
@@ -25,17 +26,23 @@ function Navbar() {
         try {
           const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
           if (userDoc.exists()) {
-            setUserName(userDoc.data().name || 'User');
-            console.log('User name fetched:', userDoc.data().name);
+            const userData = userDoc.data();
+            setUserName(userData.name || 'User');
+            setUserRole(userData.role || null); // Set role (e.g., 'Buyer', 'Farmer')
+            console.log('User data fetched:', { name: userData.name, role: userData.role });
           } else {
             console.log('No user document found in Firestore');
+            setUserName('User');
+            setUserRole(null);
           }
         } catch (error) {
-          console.error('Error fetching user name:', error);
+          console.error('Error fetching user data:', error);
           setUserName('User');
+          setUserRole(null);
         }
       } else {
         setUserName('User');
+        setUserRole(null);
       }
       setIsLoading(false);
     });
@@ -136,54 +143,67 @@ function Navbar() {
                   </button>
                   {isProfileOpen && (
                     <ul className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
-                      <li>
-                        <NavLink
-                          to="/crop-health"
-                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"
-                          onClick={() => setIsProfileOpen(false)}
-                        >
-                          {t('navbar.cropHealth')}
-                        </NavLink>
-                      </li>
-                      <li>
-                        <NavLink
-                          to="/marketplace"
-                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"
-                          onClick={() => setIsProfileOpen(false)}
-                        >
-                          {t('navbar.marketplace')}
-                        </NavLink>
-                      </li>
-                      <li>
-                        <NavLink
-                          to="/market-prices"
-                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"
-                          onClick={() => {
-                            console.log('Navigating to MarketPrices:', '/market-prices');
-                            setIsProfileOpen(false);
-                          }}
-                        >
-                          {t('navbar.marketPrices')}
-                        </NavLink>
-                      </li>
-                      <li>
-                        <NavLink
-                          to="/mental-health"
-                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"
-                          onClick={() => setIsProfileOpen(false)}
-                        >
-                          {t('navbar.mentalHealth')}
-                        </NavLink>
-                      </li>
-                      <li>
-                        <NavLink
-                          to="/community"
-                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"
-                          onClick={() => setIsProfileOpen(false)}
-                        >
-                          {t('navbar.community')}
-                        </NavLink>
-                      </li>
+                      {userRole === 'Buyer' ? (
+                        // Only show BuyersMarket for Buyers
+                        <li>
+                          <NavLink
+                            to="/buyers-market"
+                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"
+                            onClick={() => setIsProfileOpen(false)}
+                          >
+                            {t('navbar.buyersMarket', 'Browse Crops')}
+                          </NavLink>
+                        </li>
+                      ) : (
+                        // Show all links for other roles (e.g., Farmer)
+                        <>
+                          <li>
+                            <NavLink
+                              to="/crop-health"
+                              className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"
+                              onClick={() => setIsProfileOpen(false)}
+                            >
+                              {t('navbar.cropHealth')}
+                            </NavLink>
+                          </li>
+                          <li>
+                            <NavLink
+                              to="/marketplace"
+                              className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"
+                              onClick={() => setIsProfileOpen(false)}
+                            >
+                              {t('navbar.marketplace')}
+                            </NavLink>
+                          </li>
+                          <li>
+                            <NavLink
+                              to="/market-prices"
+                              className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"
+                              onClick={() => setIsProfileOpen(false)}
+                            >
+                              {t('navbar.marketPrices')}
+                            </NavLink>
+                          </li>
+                          <li>
+                            <NavLink
+                              to="/mental-health"
+                              className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"
+                              onClick={() => setIsProfileOpen(false)}
+                            >
+                              {t('navbar.mentalHealth')}
+                            </NavLink>
+                          </li>
+                          <li>
+                            <NavLink
+                              to="/community"
+                              className="block px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700"
+                              onClick={() => setIsProfileOpen(false)}
+                            >
+                              {t('navbar.community')}
+                            </NavLink>
+                          </li>
+                        </>
+                      )}
                       <li className="border-t border-gray-100">
                         <button
                           onClick={handleSignOut}
@@ -252,54 +272,67 @@ function Navbar() {
             </li>
             {user ? (
               <>
-                <li>
-                  <NavLink
-                    to="/crop-health"
-                    className="block px-2 py-2 text-gray-700 hover:text-green-700"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    {t('navbar.cropHealth')}
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink
-                    to="/marketplace"
-                    className="block px-2 py-2 text-gray-700 hover:text-green-700"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    {t('navbar.marketplace')}
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink
-                    to="/market-prices"
-                    className="block px-2 py-2 text-gray-700 hover:text-green-700"
-                    onClick={() => {
-                      // console.log('Navigating to MarketPrices:', '/market-prices');
-                      setIsMenuOpen(false);
-                    }}
-                  >
-                    {t('navbar.marketPrices')}
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink
-                    to="/mental-health"
-                    className="block px-2 py-2 text-gray-700 hover:text-green-700"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    {t('navbar.mentalHealth')}
-                  </NavLink>
-                </li>
-                <li>
-                  <NavLink
-                    to="/community"
-                    className="block px-2 py-2 text-gray-700 hover:text-green-700"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    {t('navbar.community')}
-                  </NavLink>
-                </li>
+                {userRole === 'Buyer' ? (
+                  // Only show BuyersMarket for Buyers in mobile
+                  <li>
+                    <NavLink
+                      to="/buyers-market"
+                      className="block px-2 py-2 text-gray-700 hover:text-green-700"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      {t('navbar.buyersMarket', 'Browse Crops')}
+                    </NavLink>
+                  </li>
+                ) : (
+                  // Show all links for other roles (e.g., Farmer) in mobile
+                  <>
+                    <li>
+                      <NavLink
+                        to="/crop-health"
+                        className="block px-2 py-2 text-gray-700 hover:text-green-700"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        {t('navbar.cropHealth')}
+                      </NavLink>
+                    </li>
+                    <li>
+                      <NavLink
+                        to="/marketplace"
+                        className="block px-2 py-2 text-gray-700 hover:text-green-700"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        {t('navbar.marketplace')}
+                      </NavLink>
+                    </li>
+                    <li>
+                      <NavLink
+                        to="/market-prices"
+                        className="block px-2 py-2 text-gray-700 hover:text-green-700"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        {t('navbar.marketPrices')}
+                      </NavLink>
+                    </li>
+                    <li>
+                      <NavLink
+                        to="/mental-health"
+                        className="block px-2 py-2 text-gray-700 hover:text-green-700"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        {t('navbar.mentalHealth')}
+                      </NavLink>
+                    </li>
+                    <li>
+                      <NavLink
+                        to="/community"
+                        className="block px-2 py-2 text-gray-700 hover:text-green-700"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        {t('navbar.community')}
+                      </NavLink>
+                    </li>
+                  </>
+                )}
                 <li className="pt-2 border-t border-gray-100 mt-2">
                   <button
                     onClick={handleSignOut}

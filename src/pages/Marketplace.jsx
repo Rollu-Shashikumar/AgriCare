@@ -1,407 +1,391 @@
-import { useState, useEffect } from 'react';
+// src/pages/Marketplace.jsx
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { auth, db } from '../firebase/firebaseConfig';
+import { collection, addDoc, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { useTranslation } from 'react-i18next';
 
-const Marketplace = () => {
-  const [currentPage, setCurrentPage] = useState('home');
-  const [cart, setCart] = useState([]);
-  const [products, setProducts] = useState([
-    { id: 1, name: "Organic Apples", category: "fruits", description: "Fresh, crisp organic apples picked at peak ripeness.", price: 3.99, quantity: 50, farmer: 1, image: "apples.jpg" },
-    { id: 2, name: "Fresh Carrots", category: "vegetables", description: "Sweet and crunchy carrots, perfect for salads or cooking.", price: 2.49, quantity: 30, farmer: 1, image: "carrots.jpg" },
-    { id: 3, name: "Raw Honey", category: "honey", description: "Pure, unfiltered honey from local wildflowers.", price: 8.99, quantity: 15, farmer: 2, image: "honey.jpg" },
-    { id: 4, name: "Free-Range Eggs", category: "dairy", description: "Farm fresh eggs from free-range chickens.", price: 5.99, quantity: 24, farmer: 3, image: "eggs.jpg" },
-    { id: 5, name: "Heirloom Tomatoes", category: "vegetables", description: "Colorful, flavorful heirloom tomatoes.", price: 4.50, quantity: 20, farmer: 2, image: "tomatoes.jpg" },
-    { id: 6, name: "Artisan Bread", category: "baked", description: "Handcrafted sourdough bread baked fresh daily.", price: 6.99, quantity: 10, farmer: 3, image: "bread.jpg" }
-  ]);
+function Marketplace() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const [user, setUser] = useState(null);
+  const [cropName, setCropName] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [price, setPrice] = useState('');
+  const [place, setPlace] = useState('');
+  const [listings, setListings] = useState([]);
+  const [requests, setRequests] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const farmers = [
-    { id: 1, name: "Green Valley Farm", location: "Meadowville" },
-    { id: 2, name: "Sunset Orchards", location: "Riverdale" },
-    { id: 3, name: "Happy Hens Farm", location: "Hillcrest" }
-  ];
-
-  // Show selected page
-  const showPage = (pageId) => {
-    setCurrentPage(pageId);
-  };
-
-  // Add product to cart
-  const addToCart = (productId) => {
-    const product = products.find(p => p.id === productId);
-    if (product && product.quantity > 0) {
-      setCart(prevCart => {
-        const existingItem = prevCart.find(item => item.productId === productId);
-        if (existingItem) {
-          if (existingItem.quantity < product.quantity) {
-            return prevCart.map(item =>
-              item.productId === productId ? { ...item, quantity: item.quantity + 1 } : item
-            );
-          } else {
-            alert('Sorry, no more items available in stock.');
-            return prevCart;
-          }
-        } else {
-          return [...prevCart, { productId: product.id, name: product.name, price: product.price, quantity: 1 }];
-        }
-      });
-    }
-  };
-
-  // Increase item quantity in cart
-  const increaseQuantity = (productId) => {
-    const product = products.find(p => p.id === productId);
-    setCart(prevCart => {
-      const cartItem = prevCart.find(item => item.productId === productId);
-      if (cartItem && cartItem.quantity < product.quantity) {
-        return prevCart.map(item =>
-          item.productId === productId ? { ...item, quantity: item.quantity + 1 } : item
-        );
-      } else {
-        alert('Sorry, no more items available in stock.');
-        return prevCart;
-      }
-    });
-  };
-
-  // Decrease item quantity in cart
-  const decreaseQuantity = (productId) => {
-    setCart(prevCart => {
-      const cartItem = prevCart.find(item => item.productId === productId);
-      if (cartItem) {
-        if (cartItem.quantity > 1) {
-          return prevCart.map(item =>
-            item.productId === productId ? { ...item, quantity: item.quantity - 1 } : item
-          );
-        } else {
-          return prevCart.filter(item => item.productId !== productId);
-        }
-      }
-      return prevCart;
-    });
-  };
-
-  // Calculate cart totals
-  const getCartTotals = () => {
-    let total = 0;
-    let itemCount = 0;
-    cart.forEach(item => {
-      total += item.price * item.quantity;
-      itemCount += item.quantity;
-    });
-    return { total: total.toFixed(2), itemCount };
-  };
-
-  // Checkout function
-  const checkout = () => {
-    if (cart.length === 0) {
-      alert('Your cart is empty!');
-      return;
-    }
-    alert('Thank you for your order! Your items will be prepared for pickup or delivery.');
-    setCart([]);
-  };
-
-  // Apply filters (placeholder)
-  const applyFilters = () => {
-    const category = document.getElementById('categoryFilter')?.value || '';
-    const farmer = document.getElementById('farmerFilter')?.value || '';
-    const sort = document.getElementById('sortFilter')?.value || '';
-    alert(`Filters applied: Category=${category}, Farmer=${farmer}, Sort=${sort}`);
-  };
-
-  // Handle form submission for adding products
-  const handleAddProduct = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const newProduct = {
-      id: products.length + 1,
-      name: formData.get('productName'),
-      category: formData.get('productCategory'),
-      description: formData.get('productDescription'),
-      price: parseFloat(formData.get('productPrice')),
-      quantity: parseInt(formData.get('productQuantity')),
-      farmer: 1, // Assuming Green Valley Farm (farmer ID 1)
-      image: formData.get('productImage')?.name || 'fallback.jpg'
-    };
-    alert(`Product added: ${newProduct.name}`);
-    setProducts(prev => [...prev, newProduct]);
-    e.target.reset();
-  };
-
-  // Edit product (placeholder)
-  const editProduct = (productId) => {
-    const product = products.find(p => p.id === productId);
-    if (product) {
-      alert(`Editing product: ${product.name}`);
-    }
-  };
-
-  // Delete product (placeholder)
-  const deleteProduct = (productId) => {
-    if (window.confirm('Are you sure you want to delete this product?')) {
-      setProducts(prev => prev.filter(product => product.id !== productId));
-      alert('Product deleted!');
-    }
-  };
-
-  // Initialize page
+  // Local auth listener: Set user and fetch role
   useEffect(() => {
-    showPage('home');
+    const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
+      if (currentUser) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+          if (userDoc.exists()) {
+            const userData = { ...currentUser, ...userDoc.data() };
+            setUser(userData);
+          } else {
+            setUser(currentUser);
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+          setUser(currentUser);
+        }
+      } else {
+        setUser(null);
+      }
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
 
+  // Redirect if not Farmer
+  useEffect(() => {
+    if (!isLoading && (!user || user.role !== 'Farmer')) {
+      navigate('/');
+    }
+  }, [user, isLoading, navigate]);
+
+  // Fetch farmer's listings (real-time)
+  useEffect(() => {
+    if (!user || isLoading) return;
+    const q = query(collection(db, 'cropListings'), where('sellerId', '==', user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setListings(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return unsubscribe;
+  }, [user, isLoading]);
+
+  // Fetch buy requests for farmer's listings (real-time) with buyer details
+  useEffect(() => {
+    if (!user || isLoading) return;
+    const q = query(collection(db, 'buyRequests'), where('listingSellerId', '==', user.uid));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const requestsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setRequests(requestsData);
+    });
+    return unsubscribe;
+  }, [user, isLoading]);
+
+  // Handle form submit
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!cropName || !quantity || !price || !place) return;
+
+    try {
+      await addDoc(collection(db, 'cropListings'), {
+        cropName,
+        quantity: Number(quantity),
+        price: Number(price),
+        place,
+        sellerId: user.uid,
+        sellerName: user.name || 'Anonymous Farmer',
+        createdAt: new Date(),
+      });
+      setCropName('');
+      setQuantity('');
+      setPrice('');
+      setPlace('');
+    } catch (error) {
+      console.error('Error adding listing:', error);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex justify-center items-center">
+        <div className="bg-white p-8 rounded-xl shadow-lg flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-green-500 border-t-transparent"></div>
+          <p className="mt-4 text-green-700 font-medium">Loading your marketplace...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen">
-      {/* Header */}
-      {/* <header className="bg-primary text-white shadow-md">
-        <nav className="flex justify-between items-center px-8 py-4">
-          <div className="text-2xl font-bold">
-            Local<span className="text-accent">Harvest</span>
-          </div>
-          <div className="flex gap-6">
-            <a href="#" onClick={() => showPage('home')} className="text-white hover:text-accent transition">Home</a>
-            <a href="#" onClick={() => showPage('farmer')} className="text-white hover:text-accent transition">Farmers</a>
-            <a href="#" onClick={() => showPage('buyer')} className="text-white hover:text-accent transition">Shop</a>
-            <a href="#" className="text-white hover:text-accent transition">About</a>
-          </div>
-          <div className="flex gap-4">
-            <button className="px-4 py-2 border border-white rounded-lg text-white hover:bg-white/10 transition">Login</button>
-            <button className="px-4 py-2 bg-accent text-white rounded-lg hover:bg-orange-500 transition">Sign Up</button>
-          </div>
-        </nav>
-      </header> */}
-
-      {/* Main Content */}
-      <div className="container mx-auto px-4 py-8">
-        {/* Home Page */}
-        <div className={`page ${currentPage === 'home' ? 'block' : 'hidden'}`}>
-          <div className="text-center mb-8">
-            <h1 className="text-4xl text-primary mb-2">Welcome to Local Harvest Market</h1>
-            <p className="text-gray-600 text-lg">Connecting local farmers directly with buyers for fresh, sustainable produce</p>
-          </div>
-          <div className="text-center my-12">
-            <h2 className="text-2xl mb-8">Choose Your Path</h2>
-            <div className="flex justify-center gap-8">
-              <div className="bg-secondary p-8 rounded-lg shadow-md flex-1 max-w-md">
-                <h3 className="text-primary text-xl mb-4">I'm a Farmer</h3>
-                <p className="mb-8">List your products, manage inventory, and connect with local customers.</p>
-                <button onClick={() => showPage('farmer')} className="w-full bg-accent text-white py-3 rounded-lg hover:bg-orange-500 transition">Go to Farmer Dashboard</button>
-              </div>
-              <div className="bg-secondary p-8 rounded-lg shadow-md flex-1 max-w-md">
-                <h3 className="text-primary text-xl mb-4">I'm a Buyer</h3>
-                <p className="mb-8">Browse fresh local products and connect directly with farmers in your area.</p>
-                <button onClick={() => showPage('buyer')} className="w-full bg-accent text-white py-3 rounded-lg hover:bg-orange-500 transition">Shop Local Products</button>
-              </div>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100">
+      {/* Header Section */}
+      <div className="bg-gradient-to-r from-green-600 to-emerald-700 text-white">
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold mb-2">{t('marketplace.title', 'Farmer\'s Marketplace')}</h1>
+            <p className="text-green-100 text-lg">Sell your fresh crops directly to buyers</p>
           </div>
         </div>
 
-        {/* Farmer Page */}
-        <div className={`page ${currentPage === 'farmer' ? 'block' : 'hidden'}`}>
-          <div className="text-center mb-8">
-            <h1 className="text-4xl text-primary mb-2">Farmer Dashboard</h1>
-            <p className="text-gray-600 text-lg">Manage your products and connect with local buyers</p>
-          </div>
-          <div className="grid lg:grid-cols-4 gap-8 mb-8">
-            <div className="lg:col-span-1 bg-secondary p-6 rounded-lg shadow-md">
-              <h3 className="text-lg font-semibold mb-4">Farm Profile</h3>
-              <div className="mb-6">
-                <div className="flex justify-between border-b py-2">
-                  <span>Active Products</span>
-                  <span>8</span>
-                </div>
-                <div className="flex justify-between border-b py-2">
-                  <span>Total Sales</span>
-                  <span>$1,245.00</span>
-                </div>
-                <div className="flex justify-between border-b py-2">
-                  <span>Pending Orders</span>
-                  <span>3</span>
-                </div>
+        {/* Quick Stats Bar */}
+        <div className="bg-green-700 bg-opacity-50">
+          <div className="container mx-auto px-4 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+              <div>
+                <div className="text-2xl font-bold">{listings.length}</div>
+                <div className="text-green-100 text-sm">Active Listings</div>
               </div>
-              <div className="flex flex-col gap-2">
-                <button className="bg-accent text-white py-3 rounded-lg hover:bg-orange-500 transition">View Orders</button>
-                <button className="border border-gray-300 text-gray-800 py-3 rounded-lg hover:bg-gray-100 transition">Edit Profile</button>
+              <div>
+                <div className="text-2xl font-bold">{requests.length}</div>
+                <div className="text-green-100 text-sm">Buy Requests</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold">₹{listings.reduce((total, listing) => total + (listing.quantity * listing.price), 0).toLocaleString()}</div>
+                <div className="text-green-100 text-sm">Total Inventory Value</div>
               </div>
             </div>
-            <div className="lg:col-span-3 bg-secondary p-6 rounded-lg shadow-md">
-              <h3 className="text-lg font-semibold mb-4">Add New Product</h3>
-              <form onSubmit={handleAddProduct}>
-                <div className="mb-4">
-                  <label className="block mb-2 font-medium">Product Name</label>
-                  <input type="text" name="productName" className="w-full p-3 border rounded-lg" required />
-                </div>
-                <div className="mb-4">
-                  <label className="block mb-2 font-medium">Category</label>
-                  <select name="productCategory" className="w-full p-3 border rounded-lg" required>
-                    <option value="">Select Category</option>
-                    <option value="fruits">Fruits</option>
-                    <option value="vegetables">Vegetables</option>
-                    <option value="dairy">Dairy</option>
-                    <option value="meat">Meat</option>
-                    <option value="honey">Honey & Preserves</option>
-                    <option value="baked">Baked Goods</option>
-                  </select>
-                </div>
-                <div className="mb-4">
-                  <label className="block mb-2 font-medium">Description</label>
-                  <textarea name="productDescription" className="w-full p-3 border rounded-lg" rows="3" required></textarea>
-                </div>
-                <div className="flex gap-4 mb-4">
-                  <div className="flex-1">
-                    <label className="block mb-2 font-medium">Price ($)</label>
-                    <input type="number" name="productPrice" className="w-full p-3 border rounded-lg" step="0.01" min="0" required />
-                  </div>
-                  <div className="flex-1">
-                    <label className="block mb-2 font-medium">Quantity Available</label>
-                    <input type="number" name="productQuantity" className="w-full p-3 border rounded-lg" min="1" required />
-                  </div>
-                </div>
-                <div className="mb-4">
-                  <label className="block mb-2 font-medium">Product Image</label>
-                  <input type="file" name="productImage" className="w-full p-3 border rounded-lg" />
-                </div>
-                <button type="submit" className="w-full bg-accent text-white py-3 rounded-lg hover:bg-orange-500 transition">Add Product</button>
-              </form>
-            </div>
-          </div>
-          <div>
-            <h3 className="text-xl font-semibold mb-4">Your Products</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {products
-                .filter(product => product.farmer === 1) // Assuming Green Valley Farm (farmer ID 1)
-                .map(product => (
-                  <div key={product.id} className="bg-secondary rounded-lg shadow-md hover:-translate-y-1 transition">
-                    <div className="h-48 bg-gray-200 flex items-center justify-center">
-                      <img src={`/images/${product.image}`} alt={product.name} className="w-full h-full object-cover" />
-                    </div>
-                    <div className="p-4">
-                      <div className="text-lg font-semibold">{product.name}</div>
-                      <div className="text-primary font-semibold">${product.price.toFixed(2)}</div>
-                      <div className="text-gray-600">In stock: {product.quantity}</div>
-                      <div className="flex gap-2 mt-2">
-                        <button onClick={() => editProduct(product.id)} className="flex-1 border border-gray-300 py-2 rounded-lg hover:bg-gray-100">Edit</button>
-                        <button onClick={() => deleteProduct(product.id)} className="flex-1 bg-accent text-white py-2 rounded-lg hover:bg-orange-500">Delete</button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Buyer Page */}
-        <div className={`page ${currentPage === 'buyer' ? 'block' : 'hidden'}`}>
-          <div className="text-center mb-8">
-            <h1 className="text-4xl text-primary mb-2">Shop Local Products</h1>
-            <p className="text-gray-600 text-lg">Fresh produce directly from farmers in your area</p>
-          </div>
-          <div className="bg-secondary p-6 rounded-lg shadow-md mb-8">
-            <h3 className="text-lg font-semibold mb-4">Filter Products</h3>
-            <div className="flex flex-wrap gap-4 mb-4">
-              <div className="flex-1 min-w-[200px]">
-                <label className="block mb-2 font-medium">Category</label>
-                <select id="categoryFilter" className="w-full p-3 border rounded-lg">
-                  <option value="">All Categories</option>
-                  <option value="fruits">Fruits</option>
-                  <option value="vegetables">Vegetables</option>
-                  <option value="dairy">Dairy</option>
-                  <option value="meat">Meat</option>
-                  <option value="honey">Honey & Preserves</option>
-                  <option value="baked">Baked Goods</option>
-                </select>
-              </div>
-              <div className="flex-1 min-w-[200px]">
-                <label className="block mb-2 font-medium">Farmer</label>
-                <select id="farmerFilter" className="w-full p-3 border rounded-lg">
-                  <option value="">All Farmers</option>
-                  {farmers.map(farmer => (
-                    <option key={farmer.id} value={farmer.id}>{farmer.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex-1 min-w-[200px]">
-                <label className="block mb-2 font-medium">Sort By</label>
-                <select id="sortFilter" className="w-full p-3 border rounded-lg">
-                  <option value="recommended">Recommended</option>
-                  <option value="price-low">Price: Low to High</option>
-                  <option value="price-high">Price: High to Low</option>
-                  <option value="name">Name</option>
-                </select>
-              </div>
-            </div>
-            <button onClick={applyFilters} className="bg-accent text-white py-3 rounded-lg hover:bg-orange-500 transition">Apply Filters</button>
-          </div>
-          <div className="lg:fixed lg:top-20 lg:right-8 lg:w-80 bg-secondary p-6 rounded-lg shadow-md mb-8 lg:mb-0">
-            <div className="flex justify-between items-center mb-4 border-b pb-2">
-              <h3 className="text-lg font-semibold">Your Cart</h3>
-              <span>{getCartTotals().itemCount} item{getCartTotals().itemCount !== 1 ? 's' : ''}</span>
-            </div>
-            <div className="max-h-72 overflow-y-auto mb-4">
-              {cart.length === 0 ? (
-                <div className="text-gray-600">Your cart is empty</div>
-              ) : (
-                cart.map(item => (
-                  <div key={item.productId} className="flex justify-between items-center py-2 border-b">
-                    <div className="flex-1">
-                      <div className="font-medium">{item.name}</div>
-                      <div className="text-gray-600 text-sm">${item.price.toFixed(2)} each</div>
-                    </div>
-                    <div className="flex items-center">
-                      <button onClick={() => decreaseQuantity(item.productId)} className="text-primary text-lg">-</button>
-                      <span className="mx-2">{item.quantity}</span>
-                      <button onClick={() => increaseQuantity(item.productId)} className="text-primary text-lg">+</button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            <div className="flex justify-between font-semibold mt-4 pt-4 border-t">
-              <span>Total:</span>
-              <span>${getCartTotals().total}</span>
-            </div>
-            <button onClick={checkout} className="w-full bg-accent text-white py-3 rounded-lg mt-4 hover:bg-orange-500 transition">Checkout</button>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products.map(product => {
-              const farmer = farmers.find(f => f.id === product.farmer);
-              return (
-                <div key={product.id} className="bg-secondary rounded-lg shadow-md hover:-translate-y-1 transition">
-                  <div className="h-48 bg-gray-200 flex items-center justify-center">
-                    <img src={`/images/${product.image}`} alt={product.name} className="w-full h-full object-cover" />
-                  </div>
-                  <div className="p-4">
-                    <div className="text-lg font-semibold">{product.name}</div>
-                    <div className="text-gray-600 text-sm">by {farmer.name}</div>
-                    <div className="text-primary font-semibold">${product.price.toFixed(2)}</div>
-                    <div className="text-gray-600">{product.quantity > 0 ? `In stock: ${product.quantity}` : 'Out of stock'}</div>
-                    <p>{product.description.substring(0, 60)}{product.description.length > 60 ? '...' : ''}</p>
-                    <div className="mt-2">
-                      <button
-                        onClick={() => addToCart(product.id)}
-                        disabled={product.quantity <= 0}
-                        className={`w-full py-2 rounded-lg ${product.quantity <= 0 ? 'bg-gray-300 cursor-not-allowed' : 'bg-accent text-white hover:bg-orange-500 transition'}`}
-                      >
-                        Add to Cart
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
           </div>
         </div>
       </div>
 
-      {/* Footer */}
-      <footer className="bg-primary text-white text-center py-8 mt-12">
-        <div className="flex justify-center gap-6 mb-4">
-          <a href="#" className="text-white hover:underline">About Us</a>
-          <a href="#" className="text-white hover:underline">Contact</a>
-          <a href="#" className="text-white hover:underline">Terms of Service</a>
-          <a href="#" className="text-white hover:underline">Privacy Policy</a>
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid lg:grid-cols-4 gap-8">
+          {/* Add New Listing Form */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-2xl shadow-xl p-6 border-l-4 border-green-500 sticky top-8">
+              <div className="text-center mb-6">
+                <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                  </svg>
+                </div>
+                <h2 className="text-xl font-bold text-gray-800">Add New Listing</h2>
+                <p className="text-gray-500 text-sm mt-1">Create a new crop listing</p>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {t('marketplace.cropName', 'Crop Name')}
+                  </label>
+                  <input
+                    type="text"
+                    value={cropName}
+                    onChange={(e) => setCropName(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none transition-colors"
+                    placeholder="e.g., Rice, Wheat, Tomatoes"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {t('marketplace.quantity', 'Quantity')} (kg)
+                  </label>
+                  <input
+                    type="number"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none transition-colors"
+                    placeholder="Enter quantity in kg"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {t('marketplace.price', 'Price per kg')} (₹)
+                  </label>
+                  <input
+                    type="number"
+                    value={price}
+                    onChange={(e) => setPrice(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none transition-colors"
+                    placeholder="Price per kilogram"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {t('marketplace.place', 'Location')}
+                  </label>
+                  <input
+                    type="text"
+                    value={place}
+                    onChange={(e) => setPlace(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:outline-none transition-colors"
+                    placeholder="City, District"
+                    required
+                  />
+                </div>
+
+                <button 
+                  type="submit" 
+                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-3 px-6 rounded-lg hover:from-green-700 hover:to-emerald-700 transform hover:scale-105 transition-all duration-200 font-semibold flex items-center justify-center"
+                >
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                  </svg>
+                  {t('marketplace.submit', 'Create Listing')}
+                </button>
+              </form>
+            </div>
+          </div>
+
+          {/* Listings Display */}
+          <div className="lg:col-span-3">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-800">{t('marketplace.yourListings', 'Your Crop Listings')}</h2>
+                <p className="text-gray-600 mt-1">Manage and track your crop sales</p>
+              </div>
+              <div className="text-sm text-gray-500 bg-white px-4 py-2 rounded-lg shadow">
+                {listings.length} {listings.length === 1 ? 'listing' : 'listings'} active
+              </div>
+            </div>
+
+            {listings.length === 0 ? (
+              <div className="bg-white rounded-2xl shadow-lg p-12 text-center">
+                <div className="bg-green-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                  </svg>
+                </div>
+                <h3 className="text-xl font-semibold text-gray-700 mb-2">No Listings Yet</h3>
+                <p className="text-gray-500 mb-6">Start by adding your first crop listing to connect with buyers and grow your business.</p>
+                <div className="inline-flex items-center text-green-600 bg-green-50 px-6 py-3 rounded-full font-medium">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                  </svg>
+                  Use the form on the left to get started
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {listings.map((listing) => {
+                  const listingRequests = requests.filter(req => req.listingId === listing.id);
+                  
+                  return (
+                    <div key={listing.id} className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden border-l-4 border-green-400">
+                      {/* Listing Header */}
+                      <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-6 py-5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center">
+                            <div className="bg-green-100 p-4 rounded-xl mr-4">
+                              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                              </svg>
+                            </div>
+                            <div>
+                              <h3 className="text-xl font-bold text-gray-800 mb-1">{listing.cropName}</h3>
+                              <div className="flex items-center text-gray-600 text-sm space-x-4">
+                                <span className="flex items-center">
+                                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                  </svg>
+                                  {listing.place}
+                                </span>
+                                <span className="flex items-center">
+                                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                                  </svg>
+                                  {new Date(listing.createdAt?.toDate()).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-3xl font-bold text-green-600">₹{listing.price}</div>
+                            <div className="text-sm text-gray-500">per kg</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Listing Details */}
+                      <div className="px-6 py-5">
+                        <div className="flex items-center justify-between mb-6">
+                          <div className="flex items-center space-x-4">
+                            <div className="bg-blue-50 px-4 py-2 rounded-lg border border-blue-100">
+                              <div className="text-blue-600 font-semibold text-sm">Available Quantity</div>
+                              <div className="text-blue-700 font-bold">{listing.quantity} kg</div>
+                            </div>
+                            <div className="bg-green-50 px-4 py-2 rounded-lg border border-green-100">
+                              <div className="text-green-600 font-semibold text-sm">Total Value</div>
+                              <div className="text-green-700 font-bold">₹{(listing.quantity * listing.price).toLocaleString()}</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center">
+                            <span className={`px-4 py-2 rounded-lg text-sm font-medium border ${
+                              listingRequests.length > 0 
+                                ? 'bg-orange-50 text-orange-600 border-orange-100' 
+                                : 'bg-gray-50 text-gray-600 border-gray-100'
+                            }`}>
+                              {listingRequests.length} {listingRequests.length === 1 ? 'request' : 'requests'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Buy Requests Section */}
+                        <div className="border-t border-gray-100 pt-5">
+                          <h4 className="text-lg font-semibold text-gray-700 mb-4 flex items-center">
+                            <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                            </svg>
+                            {t('marketplace.buyRequests', 'Buy Requests')}
+                          </h4>
+                          
+                          {listingRequests.length === 0 ? (
+                            <div className="text-center py-8 bg-gray-50 rounded-xl">
+                              <svg className="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                              </svg>
+                              <p className="text-gray-500 font-medium">{t('marketplace.noRequests', 'No requests yet')}</p>
+                              <p className="text-gray-400 text-sm mt-1">Buyers will contact you soon!</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-4">
+                              {listingRequests.map((req, index) => (
+                                <div key={req.id} className="bg-gradient-to-r from-blue-50 to-indigo-50 p-5 rounded-xl border border-blue-100">
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center">
+                                      <div className="bg-blue-100 w-10 h-10 rounded-full flex items-center justify-center mr-4">
+                                        <span className="text-blue-600 font-bold text-sm">#{index + 1}</span>
+                                      </div>
+                                      <div>
+                                        <div className="font-semibold text-gray-800 mb-1">
+                                          {t('marketplace.requestFrom', { buyer: req.buyerName })}
+                                        </div>
+                                        <div className="text-sm text-gray-600 space-x-4">
+                                          <span className="inline-flex items-center">
+                                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                                            </svg>
+                                            {req.buyerPhone || 'N/A'}
+                                          </span>
+                                          <span className="inline-flex items-center">
+                                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                                            </svg>
+                                            {req.buyerContact || 'N/A'}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="text-right">
+                                      <button className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium flex items-center">
+                                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                                        </svg>
+                                        Contact
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
-        <p>© 2025 Local Harvest Market. All rights reserved.</p>
-      </footer>
+      </div>
     </div>
   );
-};
+}
 
 export default Marketplace;
